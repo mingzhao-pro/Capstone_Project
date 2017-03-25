@@ -1,6 +1,7 @@
 package observatory
 
 import java.time.LocalDate
+
 import scala.io.Source
 
 /**
@@ -15,17 +16,7 @@ object Extraction {
     * @return A sequence containing triplets (date, location, temperature)
     */
   def locateTemperatures(year: Int, stationsFile: String, temperaturesFile: String): Iterable[(LocalDate, Location, Double)] = {
-    val INDEX_STN = 0
-    val INDEX_WBAN = 1
 
-    //station line
-    val INDEX_LATITUDE = 2
-    val INDEX_LONGITUDE = 3
-
-    //temperature line
-    val INDEX_MONTH = 2
-    val INDEX_DAY = 3
-    val INDEX_TEMP = 4
     //concatenate STN and WBAN to be an comparable id(tuple is not easy to compare), add # to avoid coincidence
     val SEPERATOR = "#"
     /**
@@ -35,6 +26,10 @@ object Extraction {
       */
     def fToC(f: Double) = math.round((f - 32) * 5 / 9 * 10) / 10.0
 
+    def extract(line: String) = {
+      val info = line.split(",").toList
+      (info.head + SEPERATOR + info.tail.head, info.tail.tail)
+    }
     /**
       *
       * @param info station: STN	WBAN Latitude	Longitude
@@ -43,26 +38,23 @@ object Extraction {
     def isValidStation(info: String) = info.split(",").length > 3
 
     val stations = Source.fromInputStream(this.getClass.getResourceAsStream(stationsFile)).getLines
-    val validStations = stations.filter(isValidStation)
-
-    val stationLocationMap = validStations.map(line => {
-      val info = line.split(",")
-      (info(INDEX_STN) + SEPERATOR + info(INDEX_WBAN)) -> Location(info(INDEX_LATITUDE).toDouble, info(INDEX_LONGITUDE).toDouble)
-    }).toMap
+    //Map(stationId -> (Latitude, Longitude))
+    val stationLocationPair = stations.filter(isValidStation).map(extract).toMap
 
     val temperaturesInfo = Source.fromInputStream(this.getClass.getResourceAsStream(temperaturesFile)).getLines
-    val tempDateMap = temperaturesInfo.map(line => {
-      val info = line.split(",")
-      val date = LocalDate.of(year, info(INDEX_MONTH).toInt, info(INDEX_DAY).toInt)
-      (info(INDEX_STN) + SEPERATOR + info(INDEX_WBAN), date, fToC(info(INDEX_TEMP).toDouble))
-    })
+    //(stationId, (Month, Day, Temp))
+    val dateTempPair = temperaturesInfo.map(extract)
 
-    val a = for{
-      tempDate <- tempDateMap
-      if stationLocationMap.keySet.contains(tempDate._1)
+    val a = for {
+      dateTemp <- dateTempPair
+      if stationLocationPair.keySet.contains(dateTemp._1)
     } yield {
-      val filtered = stationLocationMap(tempDate._1)
-      (tempDate._2, filtered, tempDate._3)
+      val locInfo = stationLocationPair(dateTemp._1)
+      val location = Location(locInfo.head.toDouble, locInfo(1).toDouble)
+
+      val date = LocalDate.of(year, dateTemp._2.head.toInt, dateTemp._2(1).toInt)
+
+      (date, location, dateTemp._2(2).toDouble)
     }
     a.toIterable
   }
