@@ -26,6 +26,8 @@ object Extraction {
     val INDEX_MONTH = 2
     val INDEX_DAY = 3
     val INDEX_TEMP = 4
+    //concatenate STN and WBAN to be an comparable id(tuple is not easy to compare), add # to avoid coincidence
+    val SEPERATOR = "#"
     /**
       *
       * @param f Temperature in degrees Fahrenheit
@@ -45,14 +47,14 @@ object Extraction {
 
     val stationLocationMap = validStations.map(line => {
       val info = line.split(",")
-      (info(INDEX_STN) + info(INDEX_WBAN)) -> Location(info(INDEX_LATITUDE).toDouble, info(INDEX_LONGITUDE).toDouble)
+      (info(INDEX_STN) + SEPERATOR + info(INDEX_WBAN)) -> Location(info(INDEX_LATITUDE).toDouble, info(INDEX_LONGITUDE).toDouble)
     }).toMap
 
     val temperaturesInfo = Source.fromInputStream(this.getClass.getResourceAsStream(temperaturesFile)).getLines
     val tempDateMap = temperaturesInfo.map(line => {
       val info = line.split(",")
       val date = LocalDate.of(year, info(INDEX_MONTH).toInt, info(INDEX_DAY).toInt)
-      (info(INDEX_STN) + info(INDEX_WBAN), date, fToC(info(INDEX_TEMP).toDouble))
+      (info(INDEX_STN) + SEPERATOR + info(INDEX_WBAN), date, fToC(info(INDEX_TEMP).toDouble))
     })
 
     val a = for{
@@ -62,7 +64,6 @@ object Extraction {
       val filtered = stationLocationMap(tempDate._1)
       (tempDate._2, filtered, tempDate._3)
     }
-    println("final size " + a.size)
     a.toIterable
   }
 
@@ -71,8 +72,8 @@ object Extraction {
     * @return A sequence containing, for each location, the average temperature over the year.
     */
   def locationYearlyAverageRecords(records: Iterable[(LocalDate, Location, Double)]): Iterable[(Location, Double)] = {
-    val a = records.map(x => (x._2, (x._3, 1)))
-
+    val locTemGroup = records.map(x => (x._2, x._3, 1)).groupBy(_._1)
+    val sumTemp = locTemGroup.mapValues(_.reduce((a, b)=>(a._1, a._2 + b._2, a._3 + b._3)))
+    sumTemp.map(x => (x._1, math.round((x._2._2 / x._2._3) * 10.0) / 10.0))
   }
-
 }
