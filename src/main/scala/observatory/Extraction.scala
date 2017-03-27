@@ -1,7 +1,6 @@
 package observatory
 
 import java.time.LocalDate
-
 import scala.io.Source
 
 /**
@@ -27,7 +26,7 @@ object Extraction {
     def fToC(f: Double) = math.round((f - 32) * 5 / 9 * 10) / 10.0
 
     def extract(line: String) = {
-      val info = line.split(",").toList
+      val info = line.split(",")
       (info.head + SEPERATOR + info.tail.head, info.tail.tail)
     }
     /**
@@ -38,23 +37,21 @@ object Extraction {
     def isValidStation(info: String) = info.split(",").length > 3
 
     val stations = Source.fromInputStream(this.getClass.getResourceAsStream(stationsFile)).getLines
-    //Map(stationId -> (Latitude, Longitude))
-    val stationLocationPair = stations.filter(isValidStation).map(extract).toMap
+    //Map(stationId -> List(lat, lon))
+    val validStations = stations.filter(isValidStation).map(extract).toMap
 
-    val temperaturesInfo = Source.fromInputStream(this.getClass.getResourceAsStream(temperaturesFile)).getLines
-    //(stationId, (Month, Day, Temp))
-    val dateTempPair = temperaturesInfo.map(extract)
+    val temperatures = Source.fromInputStream(this.getClass.getResourceAsStream(temperaturesFile)).getLines
+    // (stationId, List(Month, Day, Temp))
+    val tempOfDates = temperatures.map(extract)
 
     val a = for {
-      dateTemp <- dateTempPair
-      if stationLocationPair.keySet.contains(dateTemp._1)
+      tempOfDate <- tempOfDates
+      if validStations.keySet.contains(tempOfDate._1)
     } yield {
-      val locInfo = stationLocationPair(dateTemp._1)
-      val location = Location(locInfo.head.toDouble, locInfo(1).toDouble)
-
-      val date = LocalDate.of(year, dateTemp._2.head.toInt, dateTemp._2(1).toInt)
-
-      (date, location, dateTemp._2(2).toDouble)
+      val date = LocalDate.of(year, tempOfDate._2.head.toInt, tempOfDate._2(1).toInt)
+      val locInfo = validStations(tempOfDate._1)
+      val temp = fToC(tempOfDate._2.last.toDouble)
+      (date, Location(locInfo.head.toDouble, locInfo(1).toDouble), temp)
     }
     a.toIterable
   }
