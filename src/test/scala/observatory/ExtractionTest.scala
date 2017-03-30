@@ -8,10 +8,10 @@ import org.scalatest.junit.JUnitRunner
 class ExtractionTest extends FunSuite {
 
   test("locateTemperatures") {
-    Extraction.locateTemperatures(1975, "/stations.csv", "/1975.csv")
+    assert(Extraction.locateTemperatures(2000, "/stations.csv", "/2000.csv").nonEmpty)
   }
 
-  //  test("locationYearlyAverageRecords") {
-  //    Extraction.locationYearlyAverageRecords(Extraction.locateTemperatures(1975, "/stations.csv", "/1975.csv"))
-  //  }
+//    test("locationYearlyAverageRecords") {
+//      assert(Extraction.locationYearlyAverageRecords(Extraction.locateTemperatures(1975, "/stations.csv", "/1975.csv")).nonEmpty)
+//    }
 }
