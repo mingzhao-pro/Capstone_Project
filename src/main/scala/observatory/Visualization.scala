@@ -41,8 +41,8 @@ object Visualization {
     val y = tempLoc.cos_lat * tempLoc.sin_lon - tempA.cos_lat * tempA.sin_lon
     val z = tempLoc.sin_lat - tempA.sin_lat
 
-    val bigC = math.sqrt(math.pow(x, 2) + math.pow(y, 2) + math.pow(z, 2))/2
-    2 * math.asin(bigC)
+    val bigC = math.sqrt(math.pow(x, 2) + math.pow(y, 2) + math.pow(z, 2))
+    math.asin(bigC / 2)
   }
 
   /**
@@ -51,16 +51,17 @@ object Visualization {
     * @return The predicted temperature at `location`
     */
   def predictTemperature(temperatures: Iterable[(Location, Double)], location: Location): Double = {
+
     // distance: (temp, dist)
     temperatures.find(_._1.equals(location)) match {
       case Some(x) => x._2
       case None => {
         val k = temperatures
           .map(x => (x._2, distanceToLoc(x._1, location)))
-        val r =   k.map(x => (1 / x._2, x._1))
+          .map(x => (1 / x._2, x._1))
           .map(x => (x._1 * x._2, x._1))
           .reduce((a, b) => (a._1 + b._1, a._2 + b._2))
-        r._1 / r._2
+        k._1 / k._2
       }
     }
   }
@@ -71,6 +72,7 @@ object Visualization {
     * @return The color that corresponds to `value`, according to the color scale defined by `points`
     */
   def interpolateColor(points: Iterable[(Double, Color)], value: Double): Color = {
+
     /**
       * implementation of Linear Interpolation
       *
@@ -81,7 +83,8 @@ object Visualization {
       * @return
       */
     def calculateRGB(y0: Double, x0: Double, y1: Double, x1: Double): Int = {
-      val color = y0 * (1 - math.abs(value - x0) / (x1 - x0)) + y1 * math.abs((value - x0) / (x1 - x0))
+      val ratio = (value - x0) / (x1 - x0)
+      val color = y0 * (1 - ratio) + y1 * ratio
       math.round(color).toInt
     }
 
@@ -93,10 +96,10 @@ object Visualization {
       case _ if value <= color.last._1 => color.last._2
       case _ => {
         val colorZone = colorPair.find(x => x._1._1 > value && value >= x._2._1).get
-        val n = colorZone._1
         // bigger
-        val m = colorZone._2
+        val n = colorZone._1
         // smaller
+        val m = colorZone._2
         val r = calculateRGB(m._2.red, m._1, n._2.red, n._1)
         val g = calculateRGB(m._2.green, m._1, n._2.green, n._1)
         val b = calculateRGB(m._2.blue, m._1, n._2.blue, n._1)
@@ -113,23 +116,19 @@ object Visualization {
   def visualize(temperatures: Iterable[(Location, Double)], colors: Iterable[(Double, Color)]): Image = {
     val Lat_MAX = 180
     val Lon_MAX = 360
-    val imageArray = new Array[Pixel](Lat_MAX * Lon_MAX)
+    val imageArray = Array.ofDim[Pixel](Lat_MAX, Lon_MAX)
 
     // (Location, temp)
-    val pairs = temperatures.map(x => (Location(math.round(x._1.lat), math.round(x._1.lon)), x._2))
+    val pairs = temperatures.map(x => (Location(math.round(x._1.lat * 10.0) / 10.0, math.round(x._1.lon * 10.0) / 10.0), x._2))
 
-    for (x <- 0 until Lat_MAX; y <- 0 until Lon_MAX) locMathMap += (Location(x, y) -> new LocMath(Location(x, y)))
-
-    for (x <- 0 until Lat_MAX; y <- 0 until Lon_MAX) {
-      val lat = 90 - x
-      val lon = y - 180
-      val preTemp = predictTemperature(pairs, Location(lat, lon))
-      val preColor = interpolateColor(colors, preTemp)
-      imageArray(y * Lat_MAX + x) = Pixel(preColor.red, preColor.green, preColor.blue, 0)
+    for (lat <- -89 to 90; lon <- -180 to 179) {
+        val preTemp = predictTemperature(pairs, Location(1 - lat, lon))
+        val preColor = interpolateColor(colors, preTemp)
+        imageArray(lat + 89)(lon + 180) = Pixel(preColor.red, preColor.green, preColor.blue, 127)
     }
-    val image = Image(Lon_MAX, Lat_MAX, imageArray, 2)
-    image.output(new java.io.File("/home/saga/Workspace/coursera/scala/Capstone_Project/observatory/target/mage.png"))
-//    image.output(new java.io.File("target/mage.png"))
+    val image = Image(Lon_MAX, Lat_MAX, imageArray.flatten, 2)
+//    image.output(new java.io.File("/home/saga/Workspace/coursera/scala/Capstone_Project/observatory/target/mage.png"))
+    image.output(new java.io.File("target/mage.png"))
     image
   }
 }
