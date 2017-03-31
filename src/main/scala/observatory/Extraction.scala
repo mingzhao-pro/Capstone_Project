@@ -61,8 +61,8 @@ object Extraction {
     * @return A sequence containing, for each location, the average temperature over the year.
     */
   def locationYearlyAverageRecords(records: Iterable[(LocalDate, Location, Double)]): Iterable[(Location, Double)] = {
-    val locTemGroup = records.map(x => (x._2, x._3, 1)).groupBy(_._1)
+    val locTemGroup = records.par.map(x => (x._2, x._3, 1)).groupBy(_._1)
     val sumTemp = locTemGroup.mapValues(_.reduce((a, b)=>(a._1, a._2 + b._2, a._3 + b._3)))
-    sumTemp.map(x => (x._1, math.round((x._2._2 / x._2._3) * 10.0) / 10.0))
+    sumTemp.map(x => (x._1, math.round((x._2._2 / x._2._3) * 10.0) / 10.0)).toIterator.toIterable
   }
 }
