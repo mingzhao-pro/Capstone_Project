@@ -8,11 +8,10 @@ import com.sksamuel.scrimage.{Image, Pixel}
 object Visualization {
 
   class LocMath(loc: Location) {
-    val radio = 57.2958 // 1 radius = 1 degree * radio
-    val sin_lat = math.sin(loc.lat / radio)
-    val cos_lat = math.cos(loc.lat / radio)
-    val sin_lon = math.sin(loc.lon / radio)
-    val cos_lon = math.cos(loc.lon / radio)
+    val sin_lat = math.sin(loc.lat)
+    val cos_lat = math.cos(loc.lat)
+    val sin_lon = math.sin(loc.lon)
+    val cos_lon = math.cos(loc.lon)
   }
 
   // (Location, sin_lat, cos_lat, sin_lon, cos_lon)
@@ -42,7 +41,9 @@ object Visualization {
     val z = tempLoc.sin_lat - tempA.sin_lat
 
     val bigC = math.sqrt(math.pow(x, 2) + math.pow(y, 2) + math.pow(z, 2))
-    math.asin(bigC / 2)
+    val angle = math.asin(bigC / 2) * 2
+
+    angle
   }
 
   /**
@@ -127,8 +128,8 @@ object Visualization {
         imageArray(lat + 89)(lon + 180) = Pixel(preColor.red, preColor.green, preColor.blue, 127)
     }
     val image = Image(Lon_MAX, Lat_MAX, imageArray.flatten, 2)
-//    image.output(new java.io.File("/home/saga/Workspace/coursera/scala/Capstone_Project/observatory/target/mage.png"))
-    image.output(new java.io.File("target/mage.png"))
+    image.output(new java.io.File("/home/saga/Workspace/coursera/scala/Capstone_Project/observatory/target/mage.png"))
+//    image.output(new java.io.File("target/mage.png"))
     image
   }
 }
