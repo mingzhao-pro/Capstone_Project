@@ -1,0 +1,5 @@
+.idea
+target/
+capstone-ui/target/
+project/
+src/main/resources/

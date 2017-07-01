@@ -41,7 +41,7 @@ assignmentsMap := Map(
     maxScore = 10d,
     styleScoreRatio = 0.2,
     styleSheet = (baseDirectory.value / "scalastyle" / "observatory.xml").getPath,
-    options = Map("Xmx"->"1500m", "grader-memory"->"2048", "grader-cpu" -> "2")
+    options = Map("Xmx"->"1600m", "grader-memory"->"2048", "grader-cpu" -> "2")
   )
 )
 

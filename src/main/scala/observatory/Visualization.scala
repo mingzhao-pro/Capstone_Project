@@ -1,5 +1,7 @@
 package observatory
 
+import java.io.File
+
 import com.sksamuel.scrimage.{Image, Pixel}
 
 /**
@@ -7,11 +9,27 @@ import com.sksamuel.scrimage.{Image, Pixel}
   */
 object Visualization {
 
+//  def acos(x: Float): Float = {
+//    val negate : Float = float(x < 0)
+//    val abs_x = math.abs(x)
+//    var ret : Float = -0.0187293F
+//    ret = ret * abs_x
+//    ret = ret + 0.0742610F
+//    ret = ret * abs_x
+//    ret = ret - 0.2121144F
+//    ret = ret * abs_x
+//    ret = ret + 1.5707288F
+//    ret = ret * (math.sqrt(1.0 - abs_x)).toFloat
+//    ret = ret - 2 * negate * ret
+//    negate * 3.14159265358979F + ret
+//  }
+
   class LocMath(loc: Location) {
-    val sin_lat = math.sin(loc.lat)
-    val cos_lat = math.cos(loc.lat)
-    val sin_lon = math.sin(loc.lon)
-    val cos_lon = math.cos(loc.lon)
+    val ratio = 57.2958
+    val sin_lat = math.sin(loc.lat / ratio)
+    val cos_lat = math.cos(loc.lat / ratio)
+    val sin_lon = math.sin(loc.lon / ratio)
+    val cos_lon = math.cos(loc.lon / ratio)
   }
 
   // (Location, sin_lat, cos_lat, sin_lon, cos_lon)
@@ -43,7 +61,7 @@ object Visualization {
     val bigC = math.sqrt(math.pow(x, 2) + math.pow(y, 2) + math.pow(z, 2))
     val angle = math.asin(bigC / 2) * 2
 
-    angle
+    angle * 6371
   }
 
   /**
@@ -52,19 +70,18 @@ object Visualization {
     * @return The predicted temperature at `location`
     */
   def predictTemperature(temperatures: Iterable[(Location, Double)], location: Location): Double = {
-
-    // distance: (temp, dist)
-    temperatures.find(_._1.equals(location)) match {
-      case Some(x) => x._2
-      case None => {
-        val k = temperatures
-          .map(x => (x._2, distanceToLoc(x._1, location)))
-          .map(x => (1 / x._2, x._1))
-          .map(x => (x._1 * x._2, x._1))
-          .reduce((a, b) => (a._1 + b._1, a._2 + b._2))
-        k._1 / k._2
+      // distance: (temp, dist)
+      temperatures.find(_._1.equals(location)) match {
+        case Some(x) => x._2
+        case None => {
+          val k = temperatures.par
+            .map(x => (x._2, distanceToLoc(x._1, location)))
+            .map(x => (math.pow(1 / x._2, 8), x._1))
+            .map(x => (x._1 * x._2, x._1))
+            .reduce((a, b) => (a._1 + b._1, a._2 + b._2))
+          k._1 / k._2
+        }
       }
-    }
   }
 
   /**
@@ -117,20 +134,26 @@ object Visualization {
   def visualize(temperatures: Iterable[(Location, Double)], colors: Iterable[(Double, Color)]): Image = {
     val Lat_MAX = 180
     val Lon_MAX = 360
-    val imageArray = Array.ofDim[Pixel](Lat_MAX, Lon_MAX)
 
+    val locationArray = new Array[(Int, Int)](Lat_MAX * Lon_MAX)
     // (Location, temp)
     val pairs = temperatures.map(x => (Location(math.round(x._1.lat * 10.0) / 10.0, math.round(x._1.lon * 10.0) / 10.0), x._2))
 
     for (lat <- -89 to 90; lon <- -180 to 179) {
-        val preTemp = predictTemperature(pairs, Location(1 - lat, lon))
-        val preColor = interpolateColor(colors, preTemp)
-        imageArray(lat + 89)(lon + 180) = Pixel(preColor.red, preColor.green, preColor.blue, 127)
+      locationArray((lat + 89) * 360 + (lon + 180)) = (1 - lat, lon)
     }
-    val image = Image(Lon_MAX, Lat_MAX, imageArray.flatten, 2)
-    image.output(new java.io.File("/home/saga/Workspace/coursera/scala/Capstone_Project/observatory/target/mage.png"))
-//    image.output(new java.io.File("target/mage.png"))
-    image
+
+      val pixelArray = locationArray.par
+                        .map(x => predictTemperature(pairs, Location(x._1, x._2)))
+                        .map(x => interpolateColor(colors, x))
+                        .map(x => Pixel(x.red, x.green, x.blue, 127))
+                        .toArray
+
+      val image = Image(Lon_MAX, Lat_MAX, pixelArray, 2)
+//      image.output(new File("/home/saga/IdeaProjects/Capstone_Project/target/mage.png"))
+          image.output(new java.io.File("target/mage.png"))
+      image
+
   }
 }
 
